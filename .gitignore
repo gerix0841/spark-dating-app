@@ -1,0 +1,27 @@
+# --- Python / Backend ---
+venv/
+.venv/
+__pycache__/
+*.py[cod]
+*$py.class
+.env
+*.db
+*.sqlite3
+openapi.json
+
+# --- Node / Frontend ---
+node_modules/
+dist/
+.env.local
+.env.*.local
+dist-ssr/
+*.local
+
+# --- Docker ---
+.docker-temp/
+
+# --- IDE / System ---
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
