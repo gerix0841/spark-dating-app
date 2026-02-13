@@ -1,0 +1,43 @@
+services:
+  db:
+    image: postgres:15-alpine
+    container_name: spark_db_container
+    restart: always
+    environment:
+      - POSTGRES_USER=spark
+      - POSTGRES_PASSWORD=pass
+      - POSTGRES_DB=spark_db
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  backend:
+    build: ./spark-backend
+    container_name: spark_backend_container
+    restart: always
+    env_file:
+      - .env
+    environment:
+      - DATABASE_URL=postgresql://spark:pass@db:5432/spark_db
+      - CLOUDINARY_CLOUD_NAME=${CLOUDINARY_CLOUD_NAME}
+      - CLOUDINARY_API_KEY=${CLOUDINARY_API_KEY}
+      - CLOUDINARY_API_SECRET=${CLOUDINARY_API_SECRET}
+    ports:
+      - "8080:8080"
+    depends_on:
+      - db
+
+  frontend:
+    build: ./spark-frontend
+    container_name: spark_frontend_container
+    restart: always
+    ports:
+      - "5173:5173"
+    environment:
+      - VITE_API_URL=http://localhost:8080
+    depends_on:
+      - backend
+
+volumes:
+  postgres_data:
