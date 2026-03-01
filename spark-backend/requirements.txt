@@ -11,3 +11,4 @@ cloudinary
 pytest
 pytest-cov
 httpx
+python-json-logger==2.0.7

@@ -6,6 +6,7 @@ from app.api.v1.websocket_manager import manager
 from app.database import get_db
 from app.api.v1.deps import get_current_user
 from app.models.user import User
+from app.core.logger import logger
 import json
 
 router = APIRouter(prefix="/chat", tags=["chat"])
@@ -20,6 +21,8 @@ async def websocket_endpoint(websocket: WebSocket, user_id: int, db: Session = D
         while True:
             data = await websocket.receive_text()
             message_data = json.loads(data)
+
+            logger.info(f"Chat message sent", extra={"user_id": user_id, "receiver_id": message_data['receiver_id'], "content_length": len(message_data['content']) if message_data['content'] else 0})
 
             new_msg = chat_crud.create_message(
                 db,
@@ -41,10 +44,12 @@ async def websocket_endpoint(websocket: WebSocket, user_id: int, db: Session = D
 
 @router.get("/conversation/{other_user_id}")
 def get_history(other_user_id: int, db: Session = Depends(get_db), current_user = Depends(get_current_user)):
+    logger.info(f"Fetching chat history", extra={"user_id": current_user.id, "other_user_id": other_user_id})
     return chat_crud.get_conversation(db, current_user.id, other_user_id)
 
 @router.post("/mark-read/{sender_id}")
 async def mark_read(sender_id: int, db: Session = Depends(get_db), current_user = Depends(get_current_user)):
+    logger.info(f"Marking messages as read", extra={"user_id": current_user.id, "sender_id": sender_id})
     chat_crud.mark_messages_as_read(db, receiver_id=current_user.id, sender_id=sender_id)
     await manager.send_personal_message({"type": "messages_read", "reader_id": current_user.id}, sender_id)
     return {"status": "ok"}

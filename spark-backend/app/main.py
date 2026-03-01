@@ -1,6 +1,7 @@
 import uvicorn
 from fastapi import FastAPI
 from app.core.config import settings
+from app.core.logger import logger
 from app.database import engine, Base
 from app.api.v1 import auth, users, chat
 from fastapi.middleware.cors import CORSMiddleware
@@ -60,6 +61,7 @@ app.add_middleware(
 
 @app.get("/", tags=["Health Check"])
 def read_root():
+    logger.info("Root endpoint was called", extra={"custom_tag": "healthcheck"})
     return {
         "app": settings.PROJECT_NAME,
         "status": "running",

@@ -20,13 +20,15 @@ services:
       - .env
     environment:
       - DATABASE_URL=postgresql://spark:pass@db:5432/spark_db
-      - CLOUDINARY_CLOUD_NAME=${CLOUDINARY_CLOUD_NAME}
-      - CLOUDINARY_API_KEY=${CLOUDINARY_API_KEY}
-      - CLOUDINARY_API_SECRET=${CLOUDINARY_API_SECRET}
     ports:
       - "8080:8080"
     depends_on:
       - db
+    logging:
+      driver: loki
+      options:
+        loki-url: "http://host.docker.internal:3100/loki/api/v1/push"
+        loki-batch-size: "400"
 
   frontend:
     build: ./spark-frontend
@@ -38,6 +40,34 @@ services:
       - VITE_API_URL=http://localhost:8080
     depends_on:
       - backend
+    logging:
+      driver: loki
+      options:
+        loki-url: "http://host.docker.internal:3100/loki/api/v1/push"
+        loki-batch-size: "400"
+
+  loki:
+    image: grafana/loki:2.9.0
+    container_name: spark_loki
+    ports:
+      - "3100:3100"
+    volumes:
+      - ./loki-config.yaml:/etc/loki/local-config.yaml
+      - loki_data:/loki
+    command: -config.file=/etc/loki/local-config.yaml
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: spark_grafana
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning
+    depends_on:
+      - loki
 
 volumes:
   postgres_data:
+  loki_data:

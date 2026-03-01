@@ -8,6 +8,7 @@ from app.models.user import User
 import cloudinary.uploader
 from typing import List
 from app.api.v1.websocket_manager import manager
+from app.core.logger import logger
 
 router = APIRouter(prefix="/users", tags=["Users"])
 
@@ -16,17 +17,20 @@ def change_password(password_in: PasswordChange, db: Session = Depends(get_db), 
     success = user_crud.update_user_password(db, user_id=current_user.id, password_data=password_in)
 
     if success:
+        logger.info(f"Password changed successfully", extra={"user_id": current_user.id})
         return {"message": "Password updated successfully!"}
     
 @router.patch("/me/profile")
 def update_user_profile(profile_in: ProfileUpdate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     updated_profile = user_crud.update_profile(db, user_id=current_user.id, profile_in=profile_in)
+    logger.info(f"Profile updated", extra={"user_id": current_user.id})
     return {"message": "Profile updated successfully", "profile": updated_profile}
 
 @router.get("/me/profile")
 def get_my_profile(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     profile = user_crud.get_profile(db, user_id=current_user.id)
     if not profile:
+        logger.warning(f"Self profile not found", extra={"user_id": current_user.id})
         raise HTTPException(status_code=404, detail="Profile not found")
     return profile
 
@@ -37,6 +41,7 @@ def get_other_user_profile(user_id: int, db: Session = Depends(get_db), current_
     if not profile_data:
         raise HTTPException(status_code=404, detail="User profile not found")
         
+    logger.info(f"Viewed user profile", extra={"user_id": current_user.id, "target_user_id": user_id})
     return profile_data
 
 @router.post("/me/images/upload")
@@ -50,6 +55,7 @@ async def upload_image(position: int = Form(...), file: UploadFile = File(...), 
             file.file,
             folder=f"spark/user_{current_user.id}"
         )
+        logger.info(f"Image uploaded to Cloudinary", extra={"user_id": current_user.id, "position": position})
     except Exception as e:
         print(f"Cloudinary error: {e}")
         raise HTTPException(status_code=500, detail="Cloudinary upload error")
@@ -73,25 +79,30 @@ async def delete_image(image_id: int, db: Session = Depends(get_db), current_use
         raise HTTPException(status_code=404, detail="Image not found")
     
     cloudinary.uploader.destroy(deleted_img.cloudinary_public_id)
+    logger.info(f"Image deleted", extra={"user_id": current_user.id, "image_id": image_id})
     
     return {"message": "Successfully removed"}
 
 @router.post("/me/location")
 def update_location(loc_in: LocationUpdate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     user_crud.update_user_location(db, user_id=current_user.id, loc_in=loc_in)
+    logger.info(f"Location updated", extra={"user_id": current_user.id, "lat": loc_in.latitude, "lon": loc_in.longitude})
     return {"message": "Location updated successfully"}
 
 @router.get("/discovery", response_model=List[DiscoveryUserResponse])
 def discovery(db: Session = Depends(get_db), current_user = Depends(get_current_user)):
+    logger.info(f"Discovery list requested", extra={"user_id": current_user.id})
     return user_crud.get_discovery_users(db, current_user.id)
 
 @router.post("/swipe")
 def swipe(swipe_in: SwipeCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     swipe_obj, is_match = user_crud.create_swipe(db, current_user.id, swipe_in)
+    logger.info(f"User swiped", extra={"user_id": current_user.id, "target_user_id": swipe_in.liked_id, "is_match": is_match})
     return {"status": "ok", "is_match": is_match}
 
 @router.get("/matches", response_model=List[dict])
 def list_matches(db: Session = Depends(get_db), current_user = Depends(get_current_user)):
+    logger.info(f"Matches list requested", extra={"user_id": current_user.id})
     return user_crud.get_user_matches(db, current_user.id)
 
 @router.post("/{user_id}/block")
@@ -102,6 +113,7 @@ async def block_user(user_id: int, db: Session = Depends(get_db), current_user: 
     success = user_crud.block_user_and_cleanup(db, blocker_id=current_user.id, blocked_id=user_id)
     
     if success:
+        logger.info(f"User blocked", extra={"user_id": current_user.id, "target_user_id": user_id})
         payload = {
             "type": "user_blocked",
             "blocked_by": current_user.id
@@ -117,6 +129,7 @@ def undo_swipe(db: Session = Depends(get_db), current_user: User = Depends(get_c
     if not undone_action:
         raise HTTPException(status_code=404, detail="No swipe history found to undo")
     
+    logger.info(f"Swipe undone", extra={"user_id": current_user.id, "undone_user_id": undone_action.liked_id})
     return {
         "status": "success", 
         "message": "Last swipe has been undone",
