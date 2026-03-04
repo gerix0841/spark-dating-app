@@ -1,129 +1,126 @@
 # ⚡ Spark - Real-Time Dating & Social Platform
 
-![FastAPI](https://img.shields.io/badge/Backend-FastAPI-009688?logo=fastapi)
-![React](https://img.shields.io/badge/Frontend-React-61DAFB?logo=react)
-![PostgreSQL](https://img.shields.io/badge/Database-PostgreSQL-336791?logo=postgresql)
-![Docker](https://img.shields.io/badge/Infrastructure-Docker-2496ED?logo=docker)
-
-**Spark** is a modern, real-time dating application designed to connect people through shared interests and location-based discovery. Built with a focus on speed, reliability, and a seamless user experience.
+Spark is a modern, real-time dating application designed to connect people through shared interests and location-based discovery.  
+Built with a focus on **speed, reliability, and professional observability**.
 
 ---
 
 ## ✨ Core Features
 
-- **📍 Discovery**: Find users nearby using precise Haversine distance calculations  
-- **🔥 Real-time Matching**: Smooth swipe mechanism with instant match notifications  
-- **💬 Instant Messaging**: Robust WebSocket-based chat system with delivery and read receipts  
-- **📸 Media Management**: Fully integrated image uploading and cloud storage powered by Cloudinary  
-- **🛡️ Secure Auth**: JWT-based authentication with secure password hashing via `bcrypt`  
-- **🎨 Responsive Design**: A sleek, dark-themed UI built with Tailwind CSS, optimized for all devices  
+### 📍 Discovery
+Find users nearby using precise **Haversine distance calculations**.
+
+### ⚡ High Performance
+Multi-level caching via **Redis** for:
+- Discovery results
+- Matches
+- User profiles
+
+### 💬 Instant Messaging
+Robust **WebSocket-based** real-time chat system.
+
+### 📸 Media Management
+Cloudinary-powered image handling for scalable media storage.
+
+### 📊 Professional Observability
+Full metrics and logging stack:
+- Prometheus
+- Loki
+- Grafana
+
+### 🛡️ Secure Authentication
+- JWT-based authentication
+- bcrypt password hashing
 
 ---
 
-## 🏗️ Technical Stack
+# 🏗️ Technical Stack & Infrastructure
 
 | Layer | Technology |
-|------|------------|
+|-------|------------|
 | **Backend** | Python 3.11, FastAPI, SQLAlchemy, Pydantic |
-| **Frontend** | React 18, Vite, Tailwind CSS, Lucide Icons |
+| **Frontend** | React 19, Vite, Tailwind CSS, Lucide Icons |
 | **Database** | PostgreSQL 15 |
-| **Storage** | Cloudinary API |
+| **Cache & NoSQL** | Redis 7 |
+| **Observability** | Prometheus (Metrics), Loki (Logs), Grafana (Dashboard) |
+| **Container Stats** | Google cAdvisor |
 | **Infrastructure** | Docker, Docker Compose |
 
 ---
 
-## 🚀 Quick Start (with Docker)
+# 🚀 Quick Start (Docker)
 
-The easiest way to get Spark running is by using Docker. Ensure you have Docker Desktop installed.
+The entire ecosystem is containerized for a **"one-command" setup**.
 
-### 1. Clone the Repository
+## 1️⃣ Clone & Configure
 
 ```bash
 git clone https://github.com/gerix0841/spark-dating-app.git
 cd spark-dating-app
+cp .env.example .env   # Fill in your Cloudinary credentials
+```
+
+## 2️⃣ Launch the Ecosystem
+
+```bash
+docker-compose up --build -d
 ```
 
 ---
 
-### 2. Configure Environment Variables
+## 🔗 Access Portal (Localhost)
 
-Copy the example environment file and fill in your credentials:
-
-```bash
-cp .env.example .env
-```
-
-Open the `.env` file and provide your Cloudinary keys and a custom `SECRET_KEY`.
+| Service | URL | Description |
+|----------|------|------------|
+| **Frontend** | http://localhost:5173 | User Interface |
+| **Backend Docs** | http://localhost:8080/docs | Interactive Swagger API |
+| **Grafana** | http://localhost:3000 | Monitoring Dashboard (Admin: admin/admin) |
+| **Redis Insight** | http://localhost:5540 | Visual Cache Management |
+| **Prometheus** | http://localhost:9090 | Time-series metrics |
 
 ---
 
-### 3. Launch the Application
+## 📈 Monitoring & Performance
 
-```bash
-docker-compose up --build
-```
+Spark uses a professional-grade observability stack to ensure system health:
 
-The application will be available at:
+### 🔥 Redis Caching
+Dramatically reduces database load by caching:
+- Expensive Discovery queries
+- Match lists
+- User profiles
 
-- **Frontend**: http://localhost:5173  
-- **Backend API**: http://localhost:8080  
-- **Interactive API Docs**: http://localhost:8080/docs  
+### 📊 Prometheus Metrics
+Tracks API performance in real-time:
+- API response latency
+- Request counts per endpoint
+- HTTP error rates  
+
+Integrated via `prometheus-fastapi-instrumentator`.
+
+### 🧾 Grafana Loki
+Centralized log aggregation. All container logs flow into Grafana for unified debugging and error tracking.
+
+### 📦 cAdvisor
+Provides real-time resource usage monitoring for every container in the stack:
+- CPU core usage
+- Memory (RAM) footprint
+- Network I/O
 
 ---
 
 ## 📁 Project Structure
 
-```
+```plaintext
 Spark/
-├── spark-backend/          # FastAPI Application
-├── spark-frontend/         # React + Vite Application
-├── docker-compose.yml      # Multi-container orchestration
-├── .env.example            # Template for environment variables
-└── .gitignore              # Root-level git exclusion rules
+├── spark-backend/         # FastAPI Application & CRUD logic
+├── spark-frontend/        # React + Vite (Tailwind CSS)
+├── grafana/               # Provisioning & Dashboard configs
+├── prometheus.yml         # Metrics scraping configuration
+├── loki-config.yaml       # Log aggregation settings
+├── docker-compose.yml     # Full-stack orchestration
+└── .env                   # Environment secrets
 ```
-
----
-
-## 🛠️ Local Development (Manual Setup)
-
-### Backend
-
-```bash
-cd spark-backend
-python -m venv venv
-source venv/bin/activate        # Windows: .\venv\Scripts\activate
-pip install -r requirements.txt
-uvicorn app.main:app --reload --port 8080
-```
-
----
-
-### Frontend
-
-```bash
-cd spark-frontend
-npm install
-npm run dev
-```
-
----
-
-## 🤝 Contributing
-
-1. Fork the Project  
-2. Create your Feature Branch  
-   ```bash
-   git checkout -b feature/AmazingFeature
-   ```
-3. Commit your Changes  
-   ```bash
-   git commit -m "Add some AmazingFeature"
-   ```
-4. Push to the Branch  
-   ```bash
-   git push origin feature/AmazingFeature
-   ```
-5. Open a Pull Request  
 
 ---
 
@@ -133,4 +130,6 @@ Distributed under the MIT License.
 
 ---
 
-⭐ If you find this project helpful, please give it a star on GitHub!
+## ⭐ Support
+
+If you find this project helpful, please give it a ⭐ on GitHub!

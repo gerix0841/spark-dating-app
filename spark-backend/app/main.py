@@ -6,6 +6,8 @@ from app.database import engine, Base
 from app.api.v1 import auth, users, chat
 from fastapi.middleware.cors import CORSMiddleware
 import cloudinary
+from datetime import datetime
+from prometheus_fastapi_instrumentator import Instrumentator
 
 Base.metadata.create_all(bind=engine)
 
@@ -40,6 +42,8 @@ app = FastAPI(
     ]
 )
 
+Instrumentator().instrument(app).expose(app)
+
 cloudinary.config( 
 cloud_name = settings.CLOUDINARY_CLOUD_NAME, 
   api_key = settings.CLOUDINARY_API_KEY,
@@ -67,6 +71,14 @@ def read_root():
         "status": "running",
         "version": "1.0.0",
         "docs": "/docs"
+    }
+
+@app.get("/health", tags=["Health Check"])
+def health_check():
+    return {
+        "status": "healthy",
+        "timestamp": datetime.now().isoformat(),
+        "service": "backend"
     }
 
 if __name__ == "__main__":

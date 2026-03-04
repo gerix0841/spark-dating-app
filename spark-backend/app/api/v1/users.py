@@ -91,7 +91,6 @@ def update_location(loc_in: LocationUpdate, db: Session = Depends(get_db), curre
 
 @router.get("/discovery", response_model=List[DiscoveryUserResponse])
 def discovery(db: Session = Depends(get_db), current_user = Depends(get_current_user)):
-    logger.info(f"Discovery list requested", extra={"user_id": current_user.id})
     return user_crud.get_discovery_users(db, current_user.id)
 
 @router.post("/swipe")

@@ -15,6 +15,9 @@ from datetime import datetime, timedelta, timezone
 import secrets
 import string
 from sqlalchemy.orm.attributes import flag_modified
+import json
+from app.core.redis import redis_client
+from app.core.logger import logger
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
@@ -191,13 +194,22 @@ def calculate_distance(lat1, lon1, lat2, lon2):
     return R * (2 * math.atan2(math.sqrt(a), math.sqrt(1-a)))
 
 def get_discovery_users(db: Session, current_user_id: int):
+    cache_key = f"discovery:user:{current_user_id}"
+
+    try:
+        cached_data = redis_client.get(cache_key)
+        if cached_data:
+            logger.info("Discovery cache hit", extra={"user_id": current_user_id})
+            return json.loads(cached_data)
+    except Exception as e:
+        logger.error(f"Redis error: {e}", extra={"user_id": current_user_id})
+        
     me = db.query(User).filter(User.id == current_user_id).first()
-    if not me.location or not me.profile:
+    if not me or not me.location or not me.profile:
         return []
     
     my_interests = set(me.profile.interests_tags or [])
 
-    # Exclude liked or passed less than a week ago
     now_utc = datetime.now(timezone.utc)
     one_week_ago = now_utc - timedelta(days=7)
 
@@ -216,7 +228,6 @@ def get_discovery_users(db: Session, current_user_id: int):
         [current_user_id]
     )
 
-    # Age and Gender filter
     query = db.query(User).join(Profile).filter(User.id.notin_(excluded))
     if me.profile.interests != 'both':
         query = query.filter(Profile.gender == me.profile.interests)
@@ -225,7 +236,6 @@ def get_discovery_users(db: Session, current_user_id: int):
     query = query.filter((extract('year', today) - extract('year', Profile.birthdate)).between(me.profile.age_min, me.profile.age_max))
     users = query.options(joinedload(User.profile).joinedload(Profile.images), joinedload(User.location)).all()
 
-    # Distance
     results = []
     for u in users:
         if not u.location:
@@ -236,23 +246,38 @@ def get_discovery_users(db: Session, current_user_id: int):
             other_interests = set(u.profile.interests_tags or [])
             common_interests = list(my_interests.intersection(other_interests))
 
+            formatted_images = sorted(
+                [{"id": img.id, "url": img.url, "position": img.position} for img in u.profile.images],
+                key=lambda x: x['position']
+            )
+
             results.append({
                 "id": u.id,
                 "full_name": u.profile.full_name,
                 "bio": u.profile.bio,
                 "age": today.year - u.profile.birthdate.year,
                 "distance": round(dist, 1),
-                "images": sorted(u.profile.images, key=lambda x: x.position),
+                "images": formatted_images,
                 "interests": u.profile.interests_tags or [],
                 "common_interests_count": len(common_interests)
             })
+    
+    final_results = sorted(results, key=lambda x: (x['distance'] > 30, -x['common_interests_count'], x['distance']))
 
-    return sorted(results, key=lambda x: (x['distance'] > 30, -x['common_interests_count'], x['distance']))
+    try:
+        redis_client.setex(cache_key, 600, json.dumps(final_results))
+        logger.info("Discovery cache miss - Data cached", extra={"user_id": current_user_id})
+    except Exception as e:
+        logger.warning(f"Cache save failed: {e}")
+
+    return final_results
 
 def create_swipe(db: Session, liker_id: int, swipe_in: SwipeCreate):
     db_swipe = Swipe(liker_id=liker_id, liked_id=swipe_in.liked_id, is_like=swipe_in.is_like)
     db.add(db_swipe)
     db.commit()
+
+    redis_client.delete(f"discovery:user:{liker_id}")
 
     if swipe_in.is_like:
         reverse_like = db.query(Swipe).filter(Swipe.liker_id == swipe_in.liked_id, Swipe.liked_id == liker_id, Swipe.is_like == True).first()
@@ -266,13 +291,26 @@ def create_swipe(db: Session, liker_id: int, swipe_in: SwipeCreate):
                 new_match = Match(user1_id=u1, user2_id=u2)
                 db.add(new_match)
                 db.commit()
+                invalidate_match_cache(liker_id)
+                invalidate_match_cache(swipe_in.liked_id)
                 return db_swipe, True
             
     return db_swipe, False
 
 def get_user_matches(db: Session, user_id: int):
+    cache_key = f"matches:user:{user_id}"
+
+    try:
+        cached_data = redis_client.get(cache_key)
+        if cached_data:
+            logger.info("Match list cache hit", extra={"user_id": user_id})
+            return json.loads(cached_data)
+    except Exception as e:
+        logger.error(f"Redis error in matches: {e}", extra={"user_id": user_id})
+
     matches = db.query(Match).filter((Match.user1_id == user_id) | (Match.user2_id == user_id)).all()
     results = []
+    
     for m in matches:
         other_id = m.user2_id if m.user1_id == user_id else m.user1_id
         other_user = db.query(User).filter(User.id == other_id).first()
@@ -298,10 +336,18 @@ def get_user_matches(db: Session, user_id: int):
                 "age": age,
                 "image": main_img,
                 "last_message": last_msg.content if last_msg else "No messages yet",
-                "created_at": m.created_at
+                "created_at": m.created_at.isoformat() if m.created_at else None
             })
     
-    return sorted(results, key=lambda x: x['created_at'], reverse=True)
+    sorted_results = sorted(results, key=lambda x: x['created_at'] or "", reverse=True)
+
+    try:
+        redis_client.setex(cache_key, 300, json.dumps(sorted_results))
+        logger.info("Match list cache miss - Data cached", extra={"user_id": user_id})
+    except Exception as e:
+        logger.warning(f"Failed to cache matches: {e}")
+
+    return sorted_results
 
 def block_user_and_cleanup(db: Session, blocker_id: int, blocked_id: int):
     # Delete chat
@@ -332,6 +378,12 @@ def block_user_and_cleanup(db: Session, blocker_id: int, blocked_id: int):
     db.add(new_block)
     
     db.commit()
+
+    invalidate_match_cache(blocker_id)
+    invalidate_match_cache(blocked_id)
+    redis_client.delete(f"discovery:user:{blocker_id}")
+    redis_client.delete(f"discovery:user:{blocked_id}")
+    
     return True
 
 def undo_last_swipe(db: Session, user_id: int):
@@ -405,4 +457,14 @@ def reset_password_with_token(db: Session, token: str, new_password: str):
     return False
 
 
+def invalidate_profile_cache(user_id: int):
+    try:
+        redis_client.delete(f"profile:user:{user_id}")
+    except Exception as e:
+        logger.warning(f"Failed to delete profile cache for user {user_id}: {e}")
 
+def invalidate_match_cache(user_id: int):
+    try:
+        redis_client.delete(f"matches:user:{user_id}")
+    except Exception as e:
+        logger.warning(f"Failed to delete match cache for user {user_id}: {e}")
