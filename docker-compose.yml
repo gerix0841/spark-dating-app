@@ -31,6 +31,14 @@ services:
     depends_on:
       - redis
 
+  mailpit:
+    image: axllent/mailpit:latest
+    container_name: spark_mailpit
+    restart: always
+    ports:
+      - "1025:1025"
+      - "8025:8025"
+
   backend:
     build: ./spark-backend
     container_name: spark_backend_container
@@ -45,6 +53,7 @@ services:
     depends_on:
       - db
       - redis
+      - mailpit
     logging:
       driver: loki
       options:

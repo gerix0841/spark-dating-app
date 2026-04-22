@@ -9,49 +9,88 @@ from app.models.user import User
 from app.core.logger import logger
 import json
 
-router = APIRouter(prefix="/chat", tags=["chat"])
+router = APIRouter(prefix="/chat", tags=["Chat"])
+
+_ANONYMOUS_NAME = "User"
+
 
 @router.websocket("/ws/{user_id}")
-async def websocket_endpoint(websocket: WebSocket, user_id: int, db: Session = Depends(get_db_websocket)):
+async def websocket_endpoint(
+    websocket: WebSocket,
+    user_id: int,
+    db: Session = Depends(get_db_websocket),
+):
+    """Accept a persistent WebSocket connection for real-time messaging.
+
+    Incoming messages are persisted to the database and forwarded to the recipient
+    if they are currently connected.
+    """
     await manager.connect(user_id, websocket)
     current_user = db.query(User).filter(User.id == user_id).first()
-    sender_name = current_user.profile.full_name if current_user and current_user.profile else "Somebody"
+    sender_name = (
+        current_user.profile.full_name
+        if current_user and current_user.profile
+        else _ANONYMOUS_NAME
+    )
 
     try:
         while True:
             data = await websocket.receive_text()
             message_data = json.loads(data)
 
-            logger.info(f"Chat message sent", extra={"user_id": user_id, "receiver_id": message_data['receiver_id'], "content_length": len(message_data['content']) if message_data['content'] else 0})
+            logger.info(
+                "Chat message sent",
+                extra={
+                    "user_id": user_id,
+                    "receiver_id": message_data["receiver_id"],
+                    "content_length": len(message_data.get("content") or ""),
+                },
+            )
 
             new_msg = chat_crud.create_message(
                 db,
                 sender_id=user_id,
-                receiver_id=message_data['receiver_id'],
-                content=message_data['content']
+                receiver_id=message_data["receiver_id"],
+                content=message_data["content"],
             )
 
             payload = {
                 "sender_id": user_id,
                 "sender_name": sender_name,
-                "content": message_data['content'],
+                "content": message_data["content"],
                 "timestamp": new_msg.timestamp.isoformat(),
-                "type": "new_message"
+                "type": "new_message",
             }
-            await manager.send_personal_message(payload, message_data['receiver_id'])
+            await manager.send_personal_message(payload, message_data["receiver_id"])
     except WebSocketDisconnect:
         manager.disconnect(user_id)
 
+
 @router.get("/conversation/{other_user_id}")
-def get_history(other_user_id: int, db: Session = Depends(get_db), current_user = Depends(get_current_user)):
-    logger.info(f"Fetching chat history", extra={"user_id": current_user.id, "other_user_id": other_user_id})
+def get_history(
+    other_user_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Return the message history between the current user and another user."""
+    logger.info(
+        "Fetching chat history",
+        extra={"user_id": current_user.id, "other_user_id": other_user_id},
+    )
     return chat_crud.get_conversation(db, current_user.id, other_user_id)
 
+
 @router.post("/mark-read/{sender_id}")
-async def mark_read(sender_id: int, db: Session = Depends(get_db), current_user = Depends(get_current_user)):
-    logger.info(f"Marking messages as read", extra={"user_id": current_user.id, "sender_id": sender_id})
+async def mark_read(
+    sender_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Mark all unread messages from a sender as read and notify them via WebSocket."""
+    logger.info(
+        "Marking messages as read",
+        extra={"user_id": current_user.id, "sender_id": sender_id},
+    )
     chat_crud.mark_messages_as_read(db, receiver_id=current_user.id, sender_id=sender_id)
     await manager.send_personal_message({"type": "messages_read", "reader_id": current_user.id}, sender_id)
     return {"status": "ok"}
-
-

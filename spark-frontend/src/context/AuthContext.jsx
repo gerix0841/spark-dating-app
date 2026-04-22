@@ -13,8 +13,7 @@ export const AuthProvider = ({ children }) => {
       const response = await api.get('/auth/me');
       setUser({ ...response.data, loggedIn: true });
       syncLocation();
-    } catch (err) {
-      console.error("Error loading user data", err);
+    } catch {
       logout();
     } finally {
       setLoading(false);
@@ -31,29 +30,21 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   const login = async (email, password) => {
-    try {
-      const response = await api.post('/auth/login', { email, password });
-      const { access_token } = response.data;
-      localStorage.setItem('token', access_token);
-    
-      api.defaults.headers.common['Authorization'] = `Bearer ${access_token}`;
-      
-      await fetchMe();
-      
-      return response.data;
-    } catch (err) {
-      console.error("Login failed", err);
-      throw err;
-    }
+    const response = await api.post('/auth/login', { email, password });
+    const { access_token } = response.data;
+    localStorage.setItem('token', access_token);
+    api.defaults.headers.common['Authorization'] = `Bearer ${access_token}`;
+    await fetchMe();
+    return response.data;
   };
 
   const register = async (fullName, email, password, birthdate, gender) => {
-    const response = await api.post('/auth/register', { 
-      full_name: fullName, 
-      email, 
+    const response = await api.post('/auth/register', {
+      full_name: fullName,
+      email,
       password,
       birthdate,
-      gender
+      gender,
     });
     return response.data;
   };
@@ -71,9 +62,7 @@ export const AuthProvider = ({ children }) => {
 };
 
 export const useAuth = () => {
-    const context = useContext(AuthContext);
-    if (!context) {
-        throw new Error("useAuth must be used within an AuthProvider");
-    }
-    return context;
+  const context = useContext(AuthContext);
+  if (!context) throw new Error('useAuth must be used within an AuthProvider');
+  return context;
 };

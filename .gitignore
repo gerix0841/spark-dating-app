@@ -4,16 +4,20 @@ venv/
 __pycache__/
 *.py[cod]
 *$py.class
-.env
 *.db
 *.sqlite3
 openapi.json
+htmlcov/
+.coverage
+.pytest_cache/
+
+# --- Secrets & local config ---
+.env
+spark-backend/admin_emails.json
 
 # --- Node / Frontend ---
 node_modules/
 dist/
-.env.local
-.env.*.local
 dist-ssr/
 *.local
 
@@ -24,13 +28,13 @@ dist-ssr/
 .vscode/
 .idea/
 .DS_Store
-Thumbs.db. e n v 
+Thumbs.db
+.claude/
 
 # --- Monitoring Data (Docker volumes) ---
 loki_data/
 grafana_data/
 postgres_data/
 
-# IDE / Logs
-*.log 
- 
+# --- Logs ---
+*.log

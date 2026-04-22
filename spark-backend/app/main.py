@@ -3,7 +3,7 @@ from fastapi import FastAPI
 from app.core.config import settings
 from app.core.logger import logger
 from app.database import engine, Base
-from app.api.v1 import auth, users, chat
+from app.api.v1 import auth, users, chat, support, contact
 from fastapi.middleware.cors import CORSMiddleware
 import cloudinary
 from datetime import datetime
@@ -54,6 +54,8 @@ cloud_name = settings.CLOUDINARY_CLOUD_NAME,
 app.include_router(auth.router)
 app.include_router(users.router)
 app.include_router(chat.router)
+app.include_router(support.router)
+app.include_router(contact.router)
 
 app.add_middleware(
     CORSMiddleware,

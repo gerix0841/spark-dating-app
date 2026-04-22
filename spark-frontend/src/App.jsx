@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Sparkles, ArrowRight, Heart, Zap, Search, LogOut, MessageCircle, User as UserIcon } from 'lucide-react';
+import { Sparkles, ArrowRight, Heart, Zap, Search, LogOut, MessageCircle, User as UserIcon, LifeBuoy } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Toaster, toast } from 'react-hot-toast';
 import { useAuth } from './context/AuthContext';
@@ -10,6 +10,8 @@ import ProfileSetup from './components/ProfileSetup';
 import Discovery from './components/Discovery';
 import Matches from './components/Matches';
 import Chats from './components/Chats';
+import SupportBot from './components/SupportBot';
+import ContactModal from './components/ContactModal';
 
 function App() {
   const { user, logout, loading: authLoading } = useAuth();
@@ -17,6 +19,7 @@ function App() {
   const [activeTab, setActiveTab] = useState('discovery');
   const [hasNewMatch, setHasNewMatch] = useState(false);
   const [selectedChatUserId, setSelectedChatUserId] = useState(null);
+  const [contactOpen, setContactOpen] = useState(false);
 
   useEffect(() => {
     if (!user?.id) return;
@@ -81,7 +84,9 @@ function App() {
       }
       const hasUnseen = res.data.some(match => new Date(match.created_at) > new Date(lastView));
       setHasNewMatch(hasUnseen);
-    } catch (err) { console.error("Error checking matches:", err); }
+    } catch {
+      // Match check is non-critical; badge state will update on next interaction
+    }
   };
 
   useEffect(() => {
@@ -111,6 +116,8 @@ function App() {
 
       {user ? (
         <>
+          <SupportBot />
+          <ContactModal isOpen={contactOpen} onClose={() => setContactOpen(false)} />
           <nav className="w-20 md:w-64 border-r border-white/5 bg-spark-dark/50 backdrop-blur-xl flex flex-col p-4 z-20 h-full shrink-0">
             <div className="flex items-center gap-3 px-2 mb-10 shrink-0">
               <div className="p-2 bg-spark-accent rounded-lg shadow-lg shadow-spark-accent/20">
@@ -126,7 +133,12 @@ function App() {
               <NavItem icon={<UserIcon />} label="Profile" active={activeTab === 'profile'} onClick={() => setActiveTab('profile')} />
             </div>
 
-            <button onClick={logout} className="flex items-center gap-3 p-3 text-slate-400 hover:text-red-400 hover:bg-red-400/5 rounded-xl transition-all mt-auto group shrink-0">
+            <button onClick={() => setContactOpen(true)} className="flex items-center gap-3 p-3 text-slate-400 hover:text-spark-accent hover:bg-spark-accent/5 rounded-xl transition-all mt-auto group shrink-0">
+              <LifeBuoy size={22} className="shrink-0" />
+              <span className="hidden md:block font-medium">Contact Support</span>
+            </button>
+
+            <button onClick={logout} className="flex items-center gap-3 p-3 text-slate-400 hover:text-red-400 hover:bg-red-400/5 rounded-xl transition-all group shrink-0">
               <LogOut size={22} className="group-hover:translate-x-1 transition-transform" />
               <span className="hidden md:block font-medium">Logout</span>
             </button>

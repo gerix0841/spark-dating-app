@@ -16,7 +16,6 @@ const Discovery = () => {
   const x = useMotionValue(0);
   const rotate = useTransform(x, [-150, 0, 150], [-20, 0, 20]);
   const opacity = useTransform(x, [-200, -150, 0, 150, 200], [0.5, 1, 1, 1, 0.5]);
-  
   const likeOpacity = useTransform(x, [50, 120], [0, 1]);
   const nopeOpacity = useTransform(x, [-120, -50], [1, 0]);
 
@@ -28,8 +27,8 @@ const Discovery = () => {
       setCurrentIndex(0);
       setImgIndex(0);
       setCanUndo(false);
-    } catch (err) {
-      console.error("Discovery error:", err);
+    } catch {
+      // Feed is non-critical; the empty state handles the no-results case
     } finally {
       setLoading(false);
     }
@@ -40,14 +39,9 @@ const Discovery = () => {
   const handleSwipe = async (isLike) => {
     const targetUser = users[currentIndex];
     if (!targetUser) return;
-
-    x.set(0); 
+    x.set(0);
     try {
-      const res = await api.post('/users/swipe', {
-        liked_id: targetUser.id,
-        is_like: isLike
-      });
-
+      const res = await api.post('/users/swipe', { liked_id: targetUser.id, is_like: isLike });
       if (res.data.is_match) {
         setMatchData(targetUser);
         setTimeout(() => {
@@ -61,43 +55,35 @@ const Discovery = () => {
         setCurrentIndex(prev => prev + 1);
         setCanUndo(true);
       }
-    } catch (err) {
-      console.error("Swipe failed:", err);
+    } catch {
+      // Swipe failure is transient; no action required from the user
     }
   };
 
   const handleUndo = async () => {
     if (!canUndo || currentIndex <= 0) return;
-
     try {
       await api.post('/users/swipe/undo');
       setCurrentIndex(prev => prev - 1);
       setImgIndex(0);
       setCanUndo(false);
-      toast.success("Swipe undone", { icon: '↩️' });
-    } catch (err) {
-      console.error("Undo error:", err);
-      toast.error("Could not undo swipe");
+      toast.success('Swipe undone', { icon: '↩️' });
+    } catch {
+      toast.error('Could not undo swipe');
     }
   };
 
   const handleDragEnd = (event, info) => {
-    if (info.offset.x > 100) {
-      handleSwipe(true);
-    } else if (info.offset.x < -100) {
-      handleSwipe(false);
-    }
+    if (info.offset.x > 100) handleSwipe(true);
+    else if (info.offset.x < -100) handleSwipe(false);
   };
 
   const handleImageClick = (e) => {
-    if (Math.abs(x.get()) > 5) return;
-    if (matchData) return;
+    if (Math.abs(x.get()) > 5 || matchData) return;
     const rect = e.currentTarget.getBoundingClientRect();
     const xPos = e.clientX - rect.left;
     const userImages = users[currentIndex]?.images || [];
-
     if (userImages.length <= 1) return;
-
     if (xPos > rect.width / 2) {
       if (imgIndex < userImages.length - 1) setImgIndex(imgIndex + 1);
     } else {
@@ -140,14 +126,14 @@ const Discovery = () => {
       <div className="relative aspect-[3/4] overflow-visible">
         <AnimatePresence mode="wait">
           {!matchData ? (
-            <motion.div 
+            <motion.div
               key={user.id}
               style={{ x, rotate, opacity }}
               drag="x"
               dragConstraints={{ left: 0, right: 0 }}
               onDragEnd={handleDragEnd}
-              initial={{ opacity: 0 }} 
-              animate={{ opacity: 1 }} 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               className="w-full h-full relative touch-none cursor-grab active:cursor-grabbing rounded-[2.5rem] shadow-2xl bg-slate-900 border border-white/10 overflow-hidden"
               onClick={handleImageClick}
@@ -176,14 +162,9 @@ const Discovery = () => {
                   <h2 className="text-3xl font-black tracking-tight">{user.full_name}</h2>
                   <span className="text-2xl font-light opacity-80">{user.age}</span>
                 </div>
-                
-                {/* Interests Tags Bar with Shared Icons */}
                 <div className="flex flex-wrap gap-1.5 mt-3">
                   {(user.interests || []).slice(0, 3).map((interest, idx) => (
-                    <span 
-                      key={idx} 
-                      className="flex items-center gap-1.5 px-2.5 py-1 bg-white/10 backdrop-blur-md rounded-lg text-[10px] font-bold uppercase tracking-wider border border-white/5 text-white/90"
-                    >
+                    <span key={idx} className="flex items-center gap-1.5 px-2.5 py-1 bg-white/10 backdrop-blur-md rounded-lg text-[10px] font-bold uppercase tracking-wider border border-white/5 text-white/90">
                       <span className="text-xs">{getInterestIcon(interest)}</span>
                       {interest}
                     </span>
@@ -194,7 +175,6 @@ const Discovery = () => {
                     </span>
                   )}
                 </div>
-
                 <div className="flex items-center gap-1.5 text-spark-accent mt-3">
                   <MapPin size={16} fill="currentColor" fillOpacity={0.2} />
                   <span className="text-sm font-bold tracking-wide">{user.distance} km away</span>
@@ -204,14 +184,14 @@ const Discovery = () => {
           ) : (
             <motion.div key="match" initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 1.1, opacity: 0 }} className="w-full h-full bg-spark-accent flex flex-col items-center justify-center p-8 text-center rounded-[2.5rem] shadow-2xl">
               <div className="relative mb-6">
-                 <Sparkles className="text-white absolute -top-8 -right-8 animate-bounce" size={40} />
-                 <Heart className="text-white fill-current animate-pulse" size={80} />
+                <Sparkles className="text-white absolute -top-8 -right-8 animate-bounce" size={40} />
+                <Heart className="text-white fill-current animate-pulse" size={80} />
               </div>
               <h2 className="text-4xl font-black text-white mb-2 tracking-tighter uppercase italic">It's a Match!</h2>
               <p className="text-white/90 text-lg mb-8">You and <span className="font-bold">{matchData.full_name}</span> liked each other!</p>
               <div className="flex gap-4 items-center justify-center">
-                 <div className="p-3 bg-white/20 rounded-full text-white backdrop-blur-md"><MessageCircle size={24} /></div>
-                 <span className="text-white/80 text-sm font-medium">Getting next spark...</span>
+                <div className="p-3 bg-white/20 rounded-full text-white backdrop-blur-md"><MessageCircle size={24} /></div>
+                <span className="text-white/80 text-sm font-medium">Getting next spark...</span>
               </div>
             </motion.div>
           )}
@@ -223,19 +203,13 @@ const Discovery = () => {
           <button onClick={() => handleSwipe(false)} className="p-5 bg-white/5 backdrop-blur-xl border border-white/10 rounded-full text-red-500 hover:scale-110 active:scale-90 transition-all">
             <X size={32} strokeWidth={3} />
           </button>
-
-          <button 
-            onClick={handleUndo} 
+          <button
+            onClick={handleUndo}
             disabled={!canUndo}
-            className={`p-4 rounded-full border transition-all ${
-              canUndo 
-              ? 'bg-white/5 border-orange-500/50 text-orange-500 hover:scale-110 active:scale-90 shadow-[0_0_15px_rgba(249,115,22,0.2)]' 
-              : 'bg-white/5 border-white/5 text-slate-600 opacity-30 cursor-not-allowed'
-            }`}
+            className={`p-4 rounded-full border transition-all ${canUndo ? 'bg-white/5 border-orange-500/50 text-orange-500 hover:scale-110 active:scale-90 shadow-[0_0_15px_rgba(249,115,22,0.2)]' : 'bg-white/5 border-white/5 text-slate-600 opacity-30 cursor-not-allowed'}`}
           >
             <RotateCcw size={22} />
           </button>
-
           <button onClick={() => handleSwipe(true)} className="p-6 bg-spark-accent rounded-full text-white hover:scale-110 active:scale-90 transition-all shadow-xl shadow-spark-accent/30">
             <Heart size={36} fill="white" />
           </button>

@@ -21,7 +21,7 @@ const ProfileSetup = () => {
     interests: 'both',
     age_min: 18,
     age_max: 100,
-    interests_tags: [] // Új mező a tageknek
+    interests_tags: []
   });
 
   const [pwdData, setPwdData] = useState({
@@ -48,8 +48,8 @@ const ProfileSetup = () => {
         });
         setImages(response.data.images || []);
       }
-    } catch (err) {
-      console.error("Could not fetch profile data", err);
+    } catch {
+      // Profile fetch is non-critical; form retains its default state
     } finally {
       setFetching(false);
     }
@@ -84,8 +84,7 @@ const ProfileSetup = () => {
       await fetchProfileData();
       setStatusMsg('Photo uploaded!');
       setTimeout(() => setStatusMsg(''), 2000);
-    } catch (err) {
-      console.error("Upload error", err);
+    } catch {
       setStatusMsg('Upload failed.');
     } finally {
       setUploadingPos(null);
@@ -98,8 +97,8 @@ const ProfileSetup = () => {
       setImages(prev => prev.filter(img => img.id !== imageId));
       setStatusMsg('Photo removed');
       setTimeout(() => setStatusMsg(''), 2000);
-    } catch (err) {
-      console.error("Delete error", err);
+    } catch {
+      // Deletion failure is surfaced by the image not disappearing
     }
   };
 
@@ -111,8 +110,7 @@ const ProfileSetup = () => {
       await api.patch('/users/me/profile', formData);
       setStatusMsg('Profile updated successfully!');
       setTimeout(() => setStatusMsg(''), 3000);
-    } catch (err) {
-      console.error(err);
+    } catch {
       setStatusMsg('Error updating profile.');
     } finally {
       setLoading(false);

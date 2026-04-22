@@ -106,7 +106,6 @@ const Register = ({ onBack, onSuccess }) => {
               <option value="female">Female</option>
             </select>
             <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-500 group-focus-within:text-spark-accent">
-              {/* Kis nyíl jelzés a selecthez */}
               <svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <path d="M2 4L6 8L10 4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
               </svg>
